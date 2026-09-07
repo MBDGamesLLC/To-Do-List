@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic To Do List</title>
+    <style>
+        body {
+            background-color: rgb(43, 94, 128);
+            font-family: sans-serif;
+        }
+        .container {
+            width: 500px;
+            margin: auto;
+        }
+        h1 {
+            color: whitesmoke;
+            text-shadow: 0px 0px 10px rgba(0, 0, 0, 0.795);
+        }
+        /* Style for our dynamically generated task boxes */
+        .clickable-box {
+            border: 1px solid white;
+            padding: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+            margin-bottom: 15px; /* Adds spacing between list items */
+        }
+        .clickable-box:hover {
+            transform: scale(1.03);
+        }
+        .task-content {
+            display: flex;
+            align-items: center;
+            /* box-shadow: 0px 0px 5px black; */
+            padding: 10px;
+        }
+        p {
+            color: whitesmoke;
+            text-shadow: 0px 0px 5px black;
+            font-size: 20px;
+            margin: 0;
+        }
+        .completed {
+            background-color: black !important;
+        }
+        .completed p {
+            text-decoration: line-through;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Homework To Do List</h1>
+        
+        <!-- This container will hold all our generated task divs -->
+        <div id="list-container"></div>
+    </div>
+
+    <script>
+        // 1. The list of strings (your tasks)
+        const myTasks = [
+            "Week 3 Reflection, Sci-Fi, Due Sep 9th",
+            "Special Topics Proposal 1-2 page min, Due Sep 10th",
+            "Multiplayer Game Research, GIMM 400, Due Sep 11th",
+            "RCIM Certificate, Sci-Fi, Due Sep 26, but get done soon, it takes about 3 hours"
+            
+            
+        ];
+
+        // 2. Select the container where divs will go
+        const container = document.getElementById("list-container");
+
+        // 3. Loop through each string in the array
+        myTasks.forEach(function(taskText) {
+            
+            // Create the main task div
+            const taskDiv = document.createElement("div");
+            taskDiv.className = "clickable-box";
+            
+            // Generate the inner content without any checkbox
+            taskDiv.innerHTML = `
+                <div class="task-content">
+                    <p>${taskText}</p>
+                </div>
+            `;
+            
+            // 4. Add the click logic to toggle completion status
+            taskDiv.addEventListener("click", function() {
+                taskDiv.classList.toggle("completed");
+            });
+
+            // 5. Inject the finished div into the HTML container
+            container.appendChild(taskDiv);
+        });
+    </script>
+
+</body>
+</html>
