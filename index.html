@@ -322,6 +322,100 @@
             cursor: pointer;
         }
 
+        .color-picker {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .wheel-wrap {
+            position: relative;
+            width: 160px;
+            height: 160px;
+            touch-action: none;
+        }
+
+        .color-wheel {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+        }
+
+        .wheel-pointer {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.8), inset 0 0 2px rgba(0,0,0,0.5);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            top: 0;
+            left: 0;
+        }
+
+        .brightness-slider {
+            width: 100%;
+            height: 20px;
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            outline: none;
+        }
+
+        .brightness-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+
+        .brightness-slider::-moz-range-thumb {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+
+        .color-picker-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .color-swatch {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .hex-input {
+            flex: 1;
+            padding: 8px 10px;
+            font-size: 14px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            background-color: #2a2a2a;
+            color: white;
+            min-width: 0;
+        }
+
         .setting-group select {
             width: 100%;
             padding: 10px;
@@ -386,18 +480,51 @@
         <h2>Settings <button class="close-settings" id="close-settings">&times;</button></h2>
 
         <div class="setting-group">
-            <label for="bg-color-input">Background color</label>
-            <input type="color" id="bg-color-input" value="#2b5e80">
+            <label>Background color</label>
+            <div class="color-picker">
+                <div class="wheel-wrap">
+                    <canvas class="color-wheel" id="bg-wheel" width="160" height="160"></canvas>
+                    <div class="wheel-pointer" id="bg-pointer"></div>
+                </div>
+                <input type="range" class="brightness-slider" id="bg-slider" min="0" max="100" value="100">
+                <div class="color-picker-footer">
+                    <div class="color-swatch" id="bg-swatch"></div>
+                    <input type="text" class="hex-input" id="bg-hex" maxlength="7" value="#2b5e80">
+                </div>
+            </div>
+            <input type="hidden" id="bg-color-input" value="#2b5e80">
         </div>
 
         <div class="setting-group">
-            <label for="text-color-input">Text color</label>
-            <input type="color" id="text-color-input" value="#f5f5f5">
+            <label>Text color</label>
+            <div class="color-picker">
+                <div class="wheel-wrap">
+                    <canvas class="color-wheel" id="text-wheel" width="160" height="160"></canvas>
+                    <div class="wheel-pointer" id="text-pointer"></div>
+                </div>
+                <input type="range" class="brightness-slider" id="text-slider" min="0" max="100" value="100">
+                <div class="color-picker-footer">
+                    <div class="color-swatch" id="text-swatch"></div>
+                    <input type="text" class="hex-input" id="text-hex" maxlength="7" value="#f5f5f5">
+                </div>
+            </div>
+            <input type="hidden" id="text-color-input" value="#f5f5f5">
         </div>
 
         <div class="setting-group">
-            <label for="task-bg-color-input">Task background color</label>
-            <input type="color" id="task-bg-color-input" value="#ffffff">
+            <label>Task background color</label>
+            <div class="color-picker">
+                <div class="wheel-wrap">
+                    <canvas class="color-wheel" id="taskbg-wheel" width="160" height="160"></canvas>
+                    <div class="wheel-pointer" id="taskbg-pointer"></div>
+                </div>
+                <input type="range" class="brightness-slider" id="taskbg-slider" min="0" max="100" value="100">
+                <div class="color-picker-footer">
+                    <div class="color-swatch" id="taskbg-swatch"></div>
+                    <input type="text" class="hex-input" id="taskbg-hex" maxlength="7" value="#ffffff">
+                </div>
+            </div>
+            <input type="hidden" id="task-bg-color-input" value="#ffffff">
         </div>
 
         <div class="setting-group">
@@ -506,6 +633,183 @@
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
+        // --- Color conversion helpers ---
+        function hsvToRgb(h, s, v) {
+            const c = v * s;
+            const hh = h / 60;
+            const x = c * (1 - Math.abs((hh % 2) - 1));
+            let r = 0, g = 0, b = 0;
+            if (hh >= 0 && hh < 1) { r = c; g = x; b = 0; }
+            else if (hh >= 1 && hh < 2) { r = x; g = c; b = 0; }
+            else if (hh >= 2 && hh < 3) { r = 0; g = c; b = x; }
+            else if (hh >= 3 && hh < 4) { r = 0; g = x; b = c; }
+            else if (hh >= 4 && hh < 5) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+            const m = v - c;
+            return [
+                Math.round((r + m) * 255),
+                Math.round((g + m) * 255),
+                Math.round((b + m) * 255)
+            ];
+        }
+
+        function rgbToHsv(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            const d = max - min;
+            let h = 0;
+            if (d !== 0) {
+                if (max === r) h = ((g - b) / d) % 6;
+                else if (max === g) h = (b - r) / d + 2;
+                else h = (r - g) / d + 4;
+                h *= 60;
+                if (h < 0) h += 360;
+            }
+            const s = max === 0 ? 0 : d / max;
+            const v = max;
+            return { h, s, v };
+        }
+
+        function hexToRgb(hex) {
+            const clean = hex.replace('#', '');
+            return {
+                r: parseInt(clean.substring(0, 2), 16),
+                g: parseInt(clean.substring(2, 4), 16),
+                b: parseInt(clean.substring(4, 6), 16)
+            };
+        }
+
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+        }
+
+        function hsvToHex(h, s, v) {
+            const [r, g, b] = hsvToRgb(h, s, v);
+            return rgbToHex(r, g, b);
+        }
+
+        // --- Color wheel rendering (same gradient reused for every picker) ---
+        const WHEEL_SIZE = 160;
+        const WHEEL_RADIUS = WHEEL_SIZE / 2;
+
+        function buildWheelImageData() {
+            const imgData = new ImageData(WHEEL_SIZE, WHEEL_SIZE);
+            for (let y = 0; y < WHEEL_SIZE; y++) {
+                for (let x = 0; x < WHEEL_SIZE; x++) {
+                    const dx = x - WHEEL_RADIUS + 0.5;
+                    const dy = y - WHEEL_RADIUS + 0.5;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const idx = (y * WHEEL_SIZE + x) * 4;
+                    if (dist <= WHEEL_RADIUS) {
+                        let angle = Math.atan2(dy, dx);
+                        let hue = (angle * 180 / Math.PI + 360) % 360;
+                        let sat = Math.min(dist / WHEEL_RADIUS, 1);
+                        const [r, g, b] = hsvToRgb(hue, sat, 1);
+                        imgData.data[idx] = r;
+                        imgData.data[idx + 1] = g;
+                        imgData.data[idx + 2] = b;
+                        imgData.data[idx + 3] = 255;
+                    } else {
+                        imgData.data[idx + 3] = 0;
+                    }
+                }
+            }
+            return imgData;
+        }
+
+        const wheelImageData = buildWheelImageData();
+
+        function initColorPicker(prefix, hiddenInput, initialHex) {
+            const canvas = document.getElementById(prefix + '-wheel');
+            const pointer = document.getElementById(prefix + '-pointer');
+            const slider = document.getElementById(prefix + '-slider');
+            const hexInput = document.getElementById(prefix + '-hex');
+            const swatch = document.getElementById(prefix + '-swatch');
+            const ctx = canvas.getContext('2d');
+            ctx.putImageData(wheelImageData, 0, 0);
+
+            let hue = 0, sat = 0, val = 1;
+
+            function updateUI() {
+                const radius = sat * WHEEL_RADIUS;
+                const angle = hue * Math.PI / 180;
+                pointer.style.left = (WHEEL_RADIUS + radius * Math.cos(angle)) + 'px';
+                pointer.style.top = (WHEEL_RADIUS + radius * Math.sin(angle)) + 'px';
+                slider.value = Math.round(val * 100);
+                const hex = hsvToHex(hue, sat, val);
+                hexInput.value = hex;
+                swatch.style.backgroundColor = hex;
+                const fullColor = hsvToHex(hue, sat, 1);
+                slider.style.background = `linear-gradient(to right, #000, ${fullColor})`;
+            }
+
+            function commit() {
+                const hex = hsvToHex(hue, sat, val);
+                hiddenInput.value = hex;
+                hiddenInput.dispatchEvent(new Event('input'));
+            }
+
+            function setFromHex(hex) {
+                const rgb = hexToRgb(hex);
+                const hsv = rgbToHsv(rgb.r, rgb.g, rgb.b);
+                hue = hsv.h; sat = hsv.s; val = hsv.v;
+                updateUI();
+            }
+
+            function handlePointerEvent(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                const x = clientX - rect.left;
+                const y = clientY - rect.top;
+                const dx = x - WHEEL_RADIUS;
+                const dy = y - WHEEL_RADIUS;
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > WHEEL_RADIUS) dist = WHEEL_RADIUS;
+                hue = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+                sat = dist / WHEEL_RADIUS;
+                updateUI();
+                commit();
+            }
+
+            let dragging = false;
+            canvas.addEventListener('pointerdown', function(e) {
+                dragging = true;
+                canvas.setPointerCapture(e.pointerId);
+                handlePointerEvent(e);
+            });
+            canvas.addEventListener('pointermove', function(e) {
+                if (dragging) handlePointerEvent(e);
+            });
+            canvas.addEventListener('pointerup', function() { dragging = false; });
+            canvas.addEventListener('pointercancel', function() { dragging = false; });
+
+            slider.addEventListener('input', function() {
+                val = slider.value / 100;
+                updateUI();
+                commit();
+            });
+
+            hexInput.addEventListener('change', function() {
+                let hex = hexInput.value.trim();
+                if (hex && !hex.startsWith('#')) hex = '#' + hex;
+                if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+                    setFromHex(hex);
+                    commit();
+                } else {
+                    hexInput.value = hsvToHex(hue, sat, val);
+                }
+            });
+
+            setFromHex(initialHex);
+
+            return { setFromHex };
+        }
+
+        const bgPicker = initColorPicker("bg", bgColorInput, bgColorInput.value);
+        const textPicker = initColorPicker("text", textColorInput, textColorInput.value);
+        const taskBgPicker = initColorPicker("taskbg", taskBgColorInput, taskBgColorInput.value);
+
         // --- Storage adapter ---
         // Uses Claude's built-in artifact storage when running inside Claude.ai.
         // Falls back to the browser's own localStorage anywhere else (e.g. a
@@ -574,6 +878,10 @@
             taskBgColorInput.value = settings.taskBgColor;
             shadowToggle.checked = settings.shadowEnabled;
             fontSelect.value = settings.font;
+
+            if (typeof bgPicker !== "undefined") bgPicker.setFromHex(settings.bgColor);
+            if (typeof textPicker !== "undefined") textPicker.setFromHex(settings.textColor);
+            if (typeof taskBgPicker !== "undefined") taskBgPicker.setFromHex(settings.taskBgColor);
         }
 
         function renderTasks() {
