@@ -15,6 +15,8 @@
             --text-shadow: 0px 0px 10px rgba(0, 0, 0, 0.795);
             --p-text-shadow: 0px 0px 5px black;
             --task-bg-color: rgba(255, 255, 255, 0.1);
+            --font-weight: normal;
+            --font-scale: 1;
         }
 
         * {
@@ -48,7 +50,8 @@
         h1 {
             color: var(--text-color);
             text-shadow: var(--text-shadow);
-            font-size: clamp(22px, 6vw, 32px);
+            font-size: clamp(calc(22px * var(--font-scale)), calc(6vw * var(--font-scale)), calc(32px * var(--font-scale)));
+            font-weight: var(--font-weight);
             margin: 0;
             flex: 1;
             word-break: break-word;
@@ -61,7 +64,7 @@
         }
 
         #title-input {
-            font-size: clamp(22px, 6vw, 32px);
+            font-size: clamp(calc(22px * var(--font-scale)), calc(6vw * var(--font-scale)), calc(32px * var(--font-scale)));
             font-family: var(--font-family);
             color: var(--text-color);
             background: rgba(255, 255, 255, 0.15);
@@ -163,8 +166,9 @@
         p {
             color: var(--text-color);
             text-shadow: var(--p-text-shadow);
-            font-size: 18px;
+            font-size: calc(18px * var(--font-scale));
             font-family: var(--font-family);
+            font-weight: var(--font-weight);
             margin: 0;
             word-break: break-word;
         }
@@ -390,6 +394,37 @@
             cursor: pointer;
         }
 
+        .plain-slider {
+            width: 100%;
+            height: 20px;
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.25);
+            outline: none;
+        }
+
+        .plain-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+
+        .plain-slider::-moz-range-thumb {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #333;
+            cursor: pointer;
+        }
+
         .color-picker-footer {
             display: flex;
             align-items: center;
@@ -457,13 +492,13 @@
 
     <div class="container">
         <div class="header-row">
-            <h1 id="title-display">To Do List</h1>
+            <h1 id="title-display">Homework To Do List</h1>
             <input type="text" id="title-input" style="display:none;">
             <button class="icon-btn" id="settings-toggle" title="Settings">⚙️</button>
         </div>
 
         <div class="input-section">
-            <input type="text" id="task-input" placeholder="Add a new task...">
+            <input type="text" id="task-input" placeholder="Add a new homework assignment...">
             <button class="add-btn" id="add-button">Add</button>
         </div>
 
@@ -535,6 +570,18 @@
         </div>
 
         <div class="setting-group">
+            <label class="toggle-label" for="bold-toggle" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                <input type="checkbox" id="bold-toggle" style="width:20px; height:20px; cursor:pointer;">
+                <span>Bold text</span>
+            </label>
+        </div>
+
+        <div class="setting-group">
+            <label for="fontsize-slider">Text size (<span id="fontsize-value">100%</span>)</label>
+            <input type="range" id="fontsize-slider" class="plain-slider" min="75" max="150" step="5" value="100">
+        </div>
+
+        <div class="setting-group">
             <label for="font-select">Font style</label>
             <select id="font-select">
                 <optgroup label="System fonts">
@@ -596,7 +643,9 @@
             textColor: "#f5f5f5",
             taskBgColor: "#ffffff",
             font: "sans-serif",
-            shadowEnabled: true
+            shadowEnabled: true,
+            boldEnabled: false,
+            fontScale: 100
         };
 
         let myTasks = defaultTasks.map(t => ({ ...t }));
@@ -623,6 +672,9 @@
         const textColorInput = document.getElementById("text-color-input");
         const taskBgColorInput = document.getElementById("task-bg-color-input");
         const shadowToggle = document.getElementById("shadow-toggle");
+        const boldToggle = document.getElementById("bold-toggle");
+        const fontSizeSlider = document.getElementById("fontsize-slider");
+        const fontSizeValueLabel = document.getElementById("fontsize-value");
         const fontSelect = document.getElementById("font-select");
         const resetSettingsBtn = document.getElementById("reset-settings-btn");
 
@@ -861,7 +913,9 @@
                 textColor: textColorInput.value,
                 taskBgColor: taskBgColorInput.value,
                 font: fontSelect.value,
-                shadowEnabled: shadowToggle.checked
+                shadowEnabled: shadowToggle.checked,
+                boldEnabled: boldToggle.checked,
+                fontScale: Number(fontSizeSlider.value)
             };
         }
 
@@ -872,12 +926,17 @@
             document.documentElement.style.setProperty("--task-bg-color", hexToRgba(settings.taskBgColor, 0.15));
             document.documentElement.style.setProperty("--text-shadow", settings.shadowEnabled ? "0px 0px 10px rgba(0, 0, 0, 0.795)" : "none");
             document.documentElement.style.setProperty("--p-text-shadow", settings.shadowEnabled ? "0px 0px 5px black" : "none");
+            document.documentElement.style.setProperty("--font-weight", settings.boldEnabled ? "bold" : "normal");
+            document.documentElement.style.setProperty("--font-scale", (settings.fontScale || 100) / 100);
 
             bgColorInput.value = settings.bgColor;
             textColorInput.value = settings.textColor;
             taskBgColorInput.value = settings.taskBgColor;
             shadowToggle.checked = settings.shadowEnabled;
+            boldToggle.checked = settings.boldEnabled;
             fontSelect.value = settings.font;
+            fontSizeSlider.value = settings.fontScale || 100;
+            fontSizeValueLabel.textContent = (settings.fontScale || 100) + "%";
 
             if (typeof bgPicker !== "undefined") bgPicker.setFromHex(settings.bgColor);
             if (typeof textPicker !== "undefined") textPicker.setFromHex(settings.textColor);
@@ -1056,6 +1115,17 @@
                 document.documentElement.style.setProperty("--text-shadow", "none");
                 document.documentElement.style.setProperty("--p-text-shadow", "none");
             }
+            saveSettings(currentSettingsFromInputs());
+        });
+
+        boldToggle.addEventListener("change", function() {
+            document.documentElement.style.setProperty("--font-weight", boldToggle.checked ? "bold" : "normal");
+            saveSettings(currentSettingsFromInputs());
+        });
+
+        fontSizeSlider.addEventListener("input", function() {
+            document.documentElement.style.setProperty("--font-scale", fontSizeSlider.value / 100);
+            fontSizeValueLabel.textContent = fontSizeSlider.value + "%";
             saveSettings(currentSettingsFromInputs());
         });
 
