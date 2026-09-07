@@ -363,13 +363,13 @@
 
     <div class="container">
         <div class="header-row">
-            <h1 id="title-display">To Do List</h1>
+            <h1 id="title-display">Homework To Do List</h1>
             <input type="text" id="title-input" style="display:none;">
             <button class="icon-btn" id="settings-toggle" title="Settings">⚙️</button>
         </div>
 
         <div class="input-section">
-            <input type="text" id="task-input" placeholder="Add a new task...">
+            <input type="text" id="task-input" placeholder="Add a new homework assignment...">
             <button class="add-btn" id="add-button">Add</button>
         </div>
 
@@ -447,12 +447,15 @@
     </div>
 
     <script>
-        // NOTE: This runs inside an artifact preview, which does not support
-        // localStorage/sessionStorage. Everything below is kept in memory for
-        // this session only, so tasks/settings reset if you reload the page.
-        // If you save this file and open it in a real browser (outside the
-        // artifact preview), you can swap the in-memory store back for
-        // localStorage and it will persist across visits.
+        // Persistence: this saves your tasks, title, and appearance settings
+        // using this artifact's built-in storage, so they'll still be here
+        // next time you open this artifact in Claude.ai. (This storage API
+        // is specific to Claude artifacts — if you download this file and
+        // open it as a plain HTML file elsewhere, saving is skipped and
+        // everything just lives in memory for that session instead.)
+
+        const DATA_KEY = "todo-data";
+        const SETTINGS_KEY = "todo-settings";
 
         const defaultTasks = [
             { text: "Week 3 Reflection, Sci-Fi, Due Sep 9th", completed: false },
@@ -461,7 +464,16 @@
             { text: "RCIM Certificate, Sci-Fi, Due Sep 26, but get done soon, it takes about 3 hours", completed: false }
         ];
 
+        const defaultSettings = {
+            bgColor: "#2b5e80",
+            textColor: "#f5f5f5",
+            taskBgColor: "#ffffff",
+            font: "sans-serif",
+            shadowEnabled: true
+        };
+
         let myTasks = defaultTasks.map(t => ({ ...t }));
+        let currentTitle = "Homework To Do List";
 
         let lastDeletedTask = null;
         let lastDeletedIndex = null;
@@ -494,6 +506,76 @@
             return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
+        // --- Storage adapter ---
+        // Uses Claude's built-in artifact storage when running inside Claude.ai.
+        // Falls back to the browser's own localStorage anywhere else (e.g. a
+        // GitHub Pages site), so saving still works once this file is hosted
+        // on its own.
+        async function storageGet(key) {
+            if (typeof window !== "undefined" && window.storage) {
+                try {
+                    const result = await window.storage.get(key);
+                    return result ? result.value : null;
+                } catch (err) {
+                    return null;
+                }
+            }
+            try {
+                return localStorage.getItem(key);
+            } catch (err) {
+                return null;
+            }
+        }
+
+        async function storageSet(key, value) {
+            if (typeof window !== "undefined" && window.storage) {
+                try {
+                    await window.storage.set(key, value);
+                } catch (err) {
+                    console.error("Could not save (artifact storage):", err);
+                }
+                return;
+            }
+            try {
+                localStorage.setItem(key, value);
+            } catch (err) {
+                console.error("Could not save (localStorage):", err);
+            }
+        }
+
+        async function saveData() {
+            await storageSet(DATA_KEY, JSON.stringify({ title: currentTitle, tasks: myTasks }));
+        }
+
+        async function saveSettings(settings) {
+            await storageSet(SETTINGS_KEY, JSON.stringify(settings));
+        }
+
+        function currentSettingsFromInputs() {
+            return {
+                bgColor: bgColorInput.value,
+                textColor: textColorInput.value,
+                taskBgColor: taskBgColorInput.value,
+                font: fontSelect.value,
+                shadowEnabled: shadowToggle.checked
+            };
+        }
+
+        function applySettings(settings) {
+            document.documentElement.style.setProperty("--bg-color", settings.bgColor);
+            document.documentElement.style.setProperty("--text-color", settings.textColor);
+            document.documentElement.style.setProperty("--font-family", settings.font);
+            document.documentElement.style.setProperty("--task-bg-color", hexToRgba(settings.taskBgColor, 0.15));
+            document.documentElement.style.setProperty("--text-shadow", settings.shadowEnabled ? "0px 0px 10px rgba(0, 0, 0, 0.795)" : "none");
+            document.documentElement.style.setProperty("--p-text-shadow", settings.shadowEnabled ? "0px 0px 5px black" : "none");
+
+            bgColorInput.value = settings.bgColor;
+            textColorInput.value = settings.textColor;
+            taskBgColorInput.value = settings.taskBgColor;
+            shadowToggle.checked = settings.shadowEnabled;
+            fontSelect.value = settings.font;
+        }
+
         function renderTasks() {
             container.innerHTML = "";
 
@@ -520,6 +602,7 @@
 
                     taskObj.completed = !taskObj.completed;
                     taskDiv.classList.toggle("completed");
+                    saveData();
                 });
 
                 const upBtn = taskDiv.querySelector(".move-up");
@@ -543,6 +626,7 @@
 
                     myTasks.splice(index, 1);
                     renderTasks();
+                    saveData();
                     triggerUndoBanner();
                 });
 
@@ -555,6 +639,7 @@
             myTasks[idxA] = myTasks[idxB];
             myTasks[idxB] = temp;
             renderTasks();
+            saveData();
         }
 
         function triggerUndoBanner() {
@@ -569,6 +654,7 @@
             if (lastDeletedTask !== null && lastDeletedIndex !== null) {
                 myTasks.splice(lastDeletedIndex, 0, lastDeletedTask);
                 renderTasks();
+                saveData();
                 lastDeletedTask = null;
                 lastDeletedIndex = null;
                 undoToast.classList.remove("show");
@@ -580,6 +666,7 @@
             if (text !== "") {
                 myTasks.push({ text: text, completed: false });
                 renderTasks();
+                saveData();
                 taskInput.value = "";
             }
         }
@@ -603,7 +690,9 @@
         function saveTitle() {
             const newTitle = titleInput.value.trim();
             if (newTitle !== "") {
+                currentTitle = newTitle;
                 titleDisplay.textContent = newTitle;
+                saveData();
             }
             titleInput.style.display = "none";
             titleDisplay.style.display = "block";
@@ -633,18 +722,22 @@
 
         bgColorInput.addEventListener("input", function() {
             document.documentElement.style.setProperty("--bg-color", bgColorInput.value);
+            saveSettings(currentSettingsFromInputs());
         });
 
         textColorInput.addEventListener("input", function() {
             document.documentElement.style.setProperty("--text-color", textColorInput.value);
+            saveSettings(currentSettingsFromInputs());
         });
 
         fontSelect.addEventListener("change", function() {
             document.documentElement.style.setProperty("--font-family", fontSelect.value);
+            saveSettings(currentSettingsFromInputs());
         });
 
         taskBgColorInput.addEventListener("input", function() {
             document.documentElement.style.setProperty("--task-bg-color", hexToRgba(taskBgColorInput.value, 0.15));
+            saveSettings(currentSettingsFromInputs());
         });
 
         shadowToggle.addEventListener("change", function() {
@@ -655,23 +748,44 @@
                 document.documentElement.style.setProperty("--text-shadow", "none");
                 document.documentElement.style.setProperty("--p-text-shadow", "none");
             }
+            saveSettings(currentSettingsFromInputs());
         });
 
         resetSettingsBtn.addEventListener("click", function() {
-            document.documentElement.style.setProperty("--bg-color", "#2b5e80");
-            document.documentElement.style.setProperty("--text-color", "#f5f5f5");
-            document.documentElement.style.setProperty("--font-family", "sans-serif");
-            document.documentElement.style.setProperty("--task-bg-color", "rgba(255, 255, 255, 0.1)");
-            document.documentElement.style.setProperty("--text-shadow", "0px 0px 10px rgba(0, 0, 0, 0.795)");
-            document.documentElement.style.setProperty("--p-text-shadow", "0px 0px 5px black");
-            bgColorInput.value = "#2b5e80";
-            textColorInput.value = "#f5f5f5";
-            taskBgColorInput.value = "#ffffff";
-            shadowToggle.checked = true;
-            fontSelect.value = "sans-serif";
+            applySettings(defaultSettings);
+            saveSettings(defaultSettings);
         });
 
-        renderTasks();
+        // --- Load saved state, then render ---
+        async function loadState() {
+            try {
+                const dataValue = await storageGet(DATA_KEY);
+                if (dataValue) {
+                    const parsed = JSON.parse(dataValue);
+                    if (Array.isArray(parsed.tasks)) myTasks = parsed.tasks;
+                    if (typeof parsed.title === "string") currentTitle = parsed.title;
+                }
+            } catch (err) {
+                // no saved data yet — defaults are already in place
+            }
+
+            try {
+                const settingsValue = await storageGet(SETTINGS_KEY);
+                if (settingsValue) {
+                    const parsedSettings = JSON.parse(settingsValue);
+                    applySettings({ ...defaultSettings, ...parsedSettings });
+                } else {
+                    applySettings(defaultSettings);
+                }
+            } catch (err) {
+                applySettings(defaultSettings);
+            }
+
+            titleDisplay.textContent = currentTitle;
+            renderTasks();
+        }
+
+        loadState();
     </script>
 
 </body>
