@@ -8,17 +8,19 @@
         body {
             background-color: rgb(43, 94, 128);
             font-family: sans-serif;
+            margin: 0;
+            padding: 0;
         }
         .container {
             width: 500px;
             margin: auto;
             margin-top: 50px;
+            padding-bottom: 80px;
         }
         h1 {
             color: whitesmoke;
             text-shadow: 0px 0px 10px rgba(0, 0, 0, 0.795);
         }
-        /* Input section styling */
         .input-section {
             display: flex;
             gap: 10px;
@@ -35,18 +37,18 @@
         button.add-btn {
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #2ecc71;
+            background-color: #111111;
             color: white;
-            border: none;
+            border: 1px solid white;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
-            transition: background 0.2s;
+            transition: background 0.2s, transform 0.1s;
         }
         button.add-btn:hover {
-            background-color: #27ae60;
+            background-color: #222222;
+            transform: scale(1.02);
         }
-        /* Style for our dynamically generated task boxes */
         .clickable-box {
             border: 1px solid white;
             background-color: rgba(255, 255, 255, 0.1);
@@ -81,20 +83,77 @@
             text-decoration: line-through;
             color: #888;
         }
-        /* Delete button styling */
+        .controls-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
         .delete-btn {
-            background-color: #e74c3c;
+            background-color: #111111;
             color: white;
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.4);
             padding: 8px 12px;
             border-radius: 4px;
             cursor: pointer;
             font-weight: bold;
             transition: background 0.2s;
-            margin-left: 10px;
         }
         .delete-btn:hover {
-            background-color: #c0392b;
+            background-color: #333333;
+            border-color: white;
+        }
+        .reorder-btn {
+            background-color: #111111;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 8px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.2s;
+        }
+        .reorder-btn:hover {
+            background-color: #333333;
+            border-color: white;
+        }
+        .reorder-btn:disabled {
+            background-color: rgba(17, 17, 17, 0.4);
+            color: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+        }
+        .undo-banner {
+            position: fixed;
+            bottom: -70px; 
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #111111;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 1px solid white;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: bottom 0.4s ease;
+            z-index: 1000;
+        }
+        .undo-banner.show {
+            bottom: 25px; 
+        }
+        .undo-btn {
+            background-color: white;
+            color: black;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .undo-btn:hover {
+            background-color: #dddddd;
         }
     </style>
 </head>
@@ -103,18 +162,20 @@
     <div class="container">
         <h1>Homework To Do List</h1>
         
-        <!-- New input field and button section -->
         <div class="input-section">
             <input type="text" id="task-input" placeholder="Add a new homework assignment...">
             <button class="add-btn" id="add-button">Add</button>
         </div>
         
-        <!-- This container will hold all our generated task divs -->
         <div id="list-container"></div>
     </div>
 
+    <div id="undo-toast" class="undo-banner">
+        <span>Task deleted.</span>
+        <button id="undo-action-btn" class="undo-btn">Undo</button>
+    </div>
+
     <script>
-        // 1. Load tasks from localStorage, or use your default list if empty
         const defaultTasks = [
             { text: "Week 3 Reflection, Sci-Fi, Due Sep 9th", completed: false },
             { text: "Special Topics Proposal 1-2 page min, Due Sep 10th", completed: false },
@@ -129,18 +190,22 @@
             saveToStorage();
         }
 
+        let lastDeletedTask = null;
+        let lastDeletedIndex = null;
+        let undoTimeoutToken = null;
+
         const container = document.getElementById("list-container");
         const taskInput = document.getElementById("task-input");
         const addButton = document.getElementById("add-button");
+        const undoToast = document.getElementById("undo-toast");
+        const undoActionBtn = document.getElementById("undo-action-btn");
 
-        // 2. Helper function to save current state to localStorage
         function saveToStorage() {
             localStorage.setItem("homeworkTasks", JSON.stringify(myTasks));
         }
 
-        // 3. Function to render all tasks onto the screen
         function renderTasks() {
-            container.innerHTML = ""; // Clear list before rebuilding
+            container.innerHTML = ""; 
             
             myTasks.forEach(function(taskObj, index) {
                 const taskDiv = document.createElement("div");
@@ -149,56 +214,98 @@
                     taskDiv.classList.add("completed");
                 }
                 
-                // Inject the text content and a separate delete button
                 taskDiv.innerHTML = `
                     <div class="task-content">
                         <p>${taskObj.text}</p>
                     </div>
-                    <button class="delete-btn" data-index="${index}">Delete</button>
+                    <div class="controls-group">
+                        <button class="reorder-btn move-up" ${index === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="reorder-btn move-down" ${index === myTasks.length - 1 ? 'disabled' : ''}>▼</button>
+                        <button class="delete-btn">Delete</button>
+                    </div>
                 `;
                 
-                // Toggle completion when clicking the task area (but not the delete button)
                 taskDiv.addEventListener("click", function(e) {
-                    if (e.target.classList.contains("delete-btn")) return;
+                    if (e.target.closest(".controls-group")) return;
                     
                     taskObj.completed = !taskObj.completed;
                     taskDiv.classList.toggle("completed");
                     saveToStorage();
                 });
 
-                // Add functionality to the delete button
+                const upBtn = taskDiv.querySelector(".move-up");
+                upBtn.addEventListener("click", function() {
+                    if (index > 0) {
+                        swapTasks(index, index - 1);
+                    }
+                });
+
+                const downBtn = taskDiv.querySelector(".move-down");
+                downBtn.addEventListener("click", function() {
+                    if (index < myTasks.length - 1) {
+                        swapTasks(index, index + 1);
+                    }
+                });
+
                 const deleteBtn = taskDiv.querySelector(".delete-btn");
                 deleteBtn.addEventListener("click", function() {
-                    myTasks.splice(index, 1); // Remove item from array
+                    lastDeletedTask = myTasks[index];
+                    lastDeletedIndex = index;
+
+                    myTasks.splice(index, 1); 
                     saveToStorage();
-                    renderTasks(); // Refresh screen
+                    renderTasks(); 
+                    triggerUndoBanner();
                 });
 
                 container.appendChild(taskDiv);
             });
         }
 
-        // 4. Function to handle adding a new task
+        function swapTasks(idxA, idxB) {
+            const temp = myTasks[idxA];
+            myTasks[idxA] = myTasks[idxB];
+            myTasks[idxB] = temp;
+            saveToStorage();
+            renderTasks();
+        }
+
+        function triggerUndoBanner() {
+            clearTimeout(undoTimeoutToken);
+            undoToast.classList.add("show");
+            undoTimeoutToken = setTimeout(function() {
+                undoToast.classList.remove("show");
+            }, 6000);
+        }
+
+        undoActionBtn.addEventListener("click", function() {
+            if (lastDeletedTask !== null && lastDeletedIndex !== null) {
+                myTasks.splice(lastDeletedIndex, 0, lastDeletedTask);
+                saveToStorage();
+                renderTasks();
+                lastDeletedTask = null;
+                lastDeletedIndex = null;
+                undoToast.classList.remove("show");
+            }
+        });
+
         function handleAddTask() {
             const text = taskInput.value.trim();
             if (text !== "") {
                 myTasks.push({ text: text, completed: false });
                 saveToStorage();
                 renderTasks();
-                taskInput.value = ""; // Clear input box
+                taskInput.value = ""; 
             }
         }
 
-        // Event listeners for adding items
         addButton.addEventListener("click", handleAddTask);
         taskInput.addEventListener("keypress", function(e) {
-            if (e.key === "Enter") {
-                handleAddTask();
-            }
-        });
-
-        // Initial render on page load
-        renderTasks();
+        if (e.key === "Enter") {
+            handleAddTask();
+        }
+    });
+    renderTasks();
     </script>
 
 </body>
