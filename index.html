@@ -6,47 +6,95 @@
     <title>Dynamic To Do List</title>
     <style>
         body {
-            
             background-color: rgb(43, 94, 128);
             font-family: sans-serif;
         }
         .container {
             width: 500px;
             margin: auto;
+            margin-top: 50px;
         }
         h1 {
             color: whitesmoke;
             text-shadow: 0px 0px 10px rgba(0, 0, 0, 0.795);
         }
+        /* Input section styling */
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid white;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        button.add-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button.add-btn:hover {
+            background-color: #27ae60;
+        }
         /* Style for our dynamically generated task boxes */
         .clickable-box {
             border: 1px solid white;
-            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
             cursor: pointer;
             transition: background-color 0.3s, transform 0.2s;
-            margin-bottom: 15px; /* Adds spacing between list items */
+            margin-bottom: 15px; 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-radius: 4px;
         }
         .clickable-box:hover {
-            transform: scale(1.03);
+            transform: scale(1.02);
         }
         .task-content {
             display: flex;
             align-items: center;
-            /* box-shadow: 0px 0px 5px black; */
-            padding: 10px;
+            flex: 1;
         }
         p {
             color: whitesmoke;
             text-shadow: 0px 0px 5px black;
             font-size: 20px;
             margin: 0;
+            word-break: break-word;
         }
         .completed {
-            background-color: black !important;
+            background-color: rgba(0, 0, 0, 0.6) !important;
         }
         .completed p {
             text-decoration: line-through;
             color: #888;
+        }
+        /* Delete button styling */
+        .delete-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            margin-left: 10px;
+        }
+        .delete-btn:hover {
+            background-color: #c0392b;
         }
     </style>
 </head>
@@ -55,46 +103,102 @@
     <div class="container">
         <h1>Homework To Do List</h1>
         
+        <!-- New input field and button section -->
+        <div class="input-section">
+            <input type="text" id="task-input" placeholder="Add a new homework assignment...">
+            <button class="add-btn" id="add-button">Add</button>
+        </div>
+        
         <!-- This container will hold all our generated task divs -->
         <div id="list-container"></div>
     </div>
 
     <script>
-        // 1. The list of strings (your tasks)
-        const myTasks = [
-            "Week 3 Reflection, Sci-Fi, Due Sep 9th",
-            "Special Topics Proposal 1-2 page min, Due Sep 10th",
-            "Multiplayer Game Research, GIMM 400, Due Sep 11th",
-            "RCIM Certificate, Sci-Fi, Due Sep 26, but get done soon, it takes about 3 hours"
-            
-            
+        // 1. Load tasks from localStorage, or use your default list if empty
+        const defaultTasks = [
+            { text: "Week 3 Reflection, Sci-Fi, Due Sep 9th", completed: false },
+            { text: "Special Topics Proposal 1-2 page min, Due Sep 10th", completed: false },
+            { text: "Multiplayer Game Research, GIMM 400, Due Sep 11th", completed: false },
+            { text: "RCIM Certificate, Sci-Fi, Due Sep 26, but get done soon, it takes about 3 hours", completed: false }
         ];
 
-        // 2. Select the container where divs will go
+        let myTasks = JSON.parse(localStorage.getItem("homeworkTasks"));
+        
+        if (!myTasks) {
+            myTasks = defaultTasks;
+            saveToStorage();
+        }
+
         const container = document.getElementById("list-container");
+        const taskInput = document.getElementById("task-input");
+        const addButton = document.getElementById("add-button");
 
-        // 3. Loop through each string in the array
-        myTasks.forEach(function(taskText) {
+        // 2. Helper function to save current state to localStorage
+        function saveToStorage() {
+            localStorage.setItem("homeworkTasks", JSON.stringify(myTasks));
+        }
+
+        // 3. Function to render all tasks onto the screen
+        function renderTasks() {
+            container.innerHTML = ""; // Clear list before rebuilding
             
-            // Create the main task div
-            const taskDiv = document.createElement("div");
-            taskDiv.className = "clickable-box";
-            
-            // Generate the inner content without any checkbox
-            taskDiv.innerHTML = `
-                <div class="task-content">
-                    <p>${taskText}</p>
-                </div>
-            `;
-            
-            // 4. Add the click logic to toggle completion status
-            taskDiv.addEventListener("click", function() {
-                taskDiv.classList.toggle("completed");
+            myTasks.forEach(function(taskObj, index) {
+                const taskDiv = document.createElement("div");
+                taskDiv.className = "clickable-box";
+                if (taskObj.completed) {
+                    taskDiv.classList.add("completed");
+                }
+                
+                // Inject the text content and a separate delete button
+                taskDiv.innerHTML = `
+                    <div class="task-content">
+                        <p>${taskObj.text}</p>
+                    </div>
+                    <button class="delete-btn" data-index="${index}">Delete</button>
+                `;
+                
+                // Toggle completion when clicking the task area (but not the delete button)
+                taskDiv.addEventListener("click", function(e) {
+                    if (e.target.classList.contains("delete-btn")) return;
+                    
+                    taskObj.completed = !taskObj.completed;
+                    taskDiv.classList.toggle("completed");
+                    saveToStorage();
+                });
+
+                // Add functionality to the delete button
+                const deleteBtn = taskDiv.querySelector(".delete-btn");
+                deleteBtn.addEventListener("click", function() {
+                    myTasks.splice(index, 1); // Remove item from array
+                    saveToStorage();
+                    renderTasks(); // Refresh screen
+                });
+
+                container.appendChild(taskDiv);
             });
+        }
 
-            // 5. Inject the finished div into the HTML container
-            container.appendChild(taskDiv);
+        // 4. Function to handle adding a new task
+        function handleAddTask() {
+            const text = taskInput.value.trim();
+            if (text !== "") {
+                myTasks.push({ text: text, completed: false });
+                saveToStorage();
+                renderTasks();
+                taskInput.value = ""; // Clear input box
+            }
+        }
+
+        // Event listeners for adding items
+        addButton.addEventListener("click", handleAddTask);
+        taskInput.addEventListener("keypress", function(e) {
+            if (e.key === "Enter") {
+                handleAddTask();
+            }
         });
+
+        // Initial render on page load
+        renderTasks();
     </script>
 
 </body>
